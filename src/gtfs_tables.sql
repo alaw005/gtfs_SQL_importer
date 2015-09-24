@@ -240,7 +240,7 @@ create table gtfs_trips (
   shape_id text,  
   trip_short_name text,
   wheelchair_accessible int, --FOREIGN KEY REFERENCES gtfs_wheelchair_accessible(wheelchair_accessible)
-
+  bikes_allowed int, 
   -- unofficial features
   trip_type text
 );
