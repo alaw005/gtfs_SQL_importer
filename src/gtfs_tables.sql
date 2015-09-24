@@ -51,7 +51,7 @@ insert into gtfs_location_types(location_type, description)
 insert into gtfs_location_types(location_type, description) 
        values (2,'station entrance');
 
---related to gtf_stops(wheelchair_boarding)
+--related to gtfs_stops(wheelchair_boarding)
 create table gtfs_wheelchair_boardings (
   wheelchair_boarding int PRIMARY KEY,
   description text
@@ -65,16 +65,16 @@ insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
        values (2, 'Wheelchair boarding is not possible at this stop');
 
 --related to gtfs_stops(wheelchair_accessible)
-create table wheelchair_accessible (
+create table gtfs_wheelchair_accessible (
   wheelchair_accessible int PRIMARY KEY,
   description text
 );
 
-insert into wheelchair_accessible(wheelchair_accessible, description)
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
         values (0, 'No accessibility information available for this trip');
-insert into wheelchair_accessible(wheelchair_accessible, description)
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
         values (1, 'The vehicle being used on this particular trip can accommodate at least one rider in a wheelchair');
-insert into wheelchair_accessible(wheelchair_accessible, description)
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
         values (2, 'No riders in wheelchairs can be accommodated on this trip');
 
 create table gtfs_stops (
