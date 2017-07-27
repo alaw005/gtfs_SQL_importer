@@ -34,13 +34,12 @@ create table gtfs_agency (
   agency_url   text NOT NULL,--NOT NULL,
   agency_timezone    text NOT NULL,--NOT NULL,
   agency_lang  text
-  -- unofficial features
-  ,
   agency_phone text,
-  fare_url text
+  fare_url text,
+  agency_email text
 );
 
---unoffical table, related to gtfs_stops(location_type)
+--related to gtfs_stops(location_type)
 create table gtfs_location_types (
   location_type int PRIMARY KEY,
   description text
@@ -53,36 +52,62 @@ insert into gtfs_location_types(location_type, description)
 insert into gtfs_location_types(location_type, description) 
        values (2,'station entrance');
 
+--related to gtfs_stops(wheelchair_boarding)
+create table gtfs_wheelchair_boardings (
+  wheelchair_boarding int PRIMARY KEY,
+  description text
+);
+
+insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
+       values (0, 'No accessibility information available for the stop');
+insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
+       values (1, 'At least some vehicles at this stop can be boarded by a rider in a wheelchair');
+insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
+       values (2, 'Wheelchair boarding is not possible at this stop');
+
+--related to gtfs_stops(wheelchair_accessible)
+create table gtfs_wheelchair_accessible (
+  wheelchair_accessible int PRIMARY KEY,
+  description text
+);
+
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (0, 'No accessibility information available for this trip');
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (1, 'The vehicle being used on this particular trip can accommodate at least one rider in a wheelchair');
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (2, 'No riders in wheelchairs can be accommodated on this trip');
+
 
 create table gtfs_stops (
   stop_id    text PRIMARY KEY,--PRIMARY KEY,
+  stop_code  text,
   stop_name  text NOT NULL, --NOT NULL,
   stop_desc  text,
   stop_lat   double precision,
   stop_lon   double precision,
   zone_id    int,
   stop_url   text,
-  stop_code  text,
+  location_type int, --FOREIGN KEY REFERENCES gtfs_location_types(location_type)
+  parent_station text, --FOREIGN KEY REFERENCES gtfs_stops(stop_id)
+  stop_timezone text,
+  wheelchair_boarding int,
 
-  -- new
+  -- unofficial features
   stop_street text,
   stop_city   text,
   stop_region text,
   stop_postcode text,
   stop_country text,
-  wheelchair_boarding int,
+  direction text,
+  position text
 
-  -- unofficial features
-
-  location_type int, --FOREIGN KEY REFERENCES gtfs_location_types(location_type)
-  parent_station text, --FOREIGN KEY REFERENCES gtfs_stops(stop_id)
-  stop_timezone text,
   FOREIGN KEY (location_type) REFERENCES gtfs_location_types(location_type),
   FOREIGN KEY (parent_station) REFERENCES gtfs_stops(stop_id)
 );
 
 -- select AddGeometryColumn( 'gtfs_stops', 'location', #{WGS84_LATLONG_EPSG}, 'POINT', 2 );
--- CREATE INDEX gtfs_stops_location_ix ON gtfs_stops USING GIST ( location GIST_GEOMETRY_OPS );
+-- CREATE INDEX gtfs_stops_location_ix ON gtfs_stops USING GIST ( location );
 
 create table gtfs_route_types (
   route_type int PRIMARY KEY,
@@ -133,7 +158,6 @@ insert into gtfs_pickup_dropoff_types (type_id, description) values (2,'Phone ar
 insert into gtfs_pickup_dropoff_types (type_id, description) values (3,'Driver arrangement only');
 
 
-
 -- CREATE INDEX gst_trip_id_stop_sequence ON gtfs_stop_times (trip_id, stop_sequence);
 
 create table gtfs_calendar (
@@ -157,17 +181,16 @@ create table gtfs_calendar_dates (
 );
 
 -- The following two tables are not in the spec, but they make dealing with dates and services easier
-create table service_combo_ids
-(
-combination_id serial --primary key
-);
-create table service_combinations
-(
-combination_id int , --references service_combo_ids(combination_id),
-service_id text --references gtfs_calendar(service_id)
+create table service_combo_ids (
+  combination_id serial --primary key
 );
 
+create table service_combinations (
+  combination_id int , --references service_combo_ids(combination_id),
+  service_id text --references gtfs_calendar(service_id)
+);
 
+-- The following table is not in the spec
 create table gtfs_payment_methods (
   payment_method int PRIMARY KEY,
   description text
@@ -184,7 +207,10 @@ create table gtfs_fare_attributes (
   payment_method    int , --REFERENCES gtfs_payment_methods,
   transfers   int,
   transfer_duration int,
+
+  -- unofficial features
   agency_id text,  --REFERENCES gtfs_agency(agency_id),
+
   FOREIGN KEY (payment_method) REFERENCES gtfs_payment_methods(payment_method),
   FOREIGN KEY (agency_id) REFERENCES gtfs_agency(agency_id)
 );
@@ -194,13 +220,13 @@ create table gtfs_fare_rules (
   route_id    text , --REFERENCES gtfs_routes(route_id),
   origin_id   int ,
   destination_id int ,
-  contains_id int 
+  contains_id int, 
+
   -- unofficial features
-  ,
   service_id text, -- REFERENCES gtfs_calendar(service_id) ?
+
   FOREIGN KEY (fare_id) REFERENCES gtfs_fare_attributes(fare_id),
   FOREIGN KEY (route_id) REFERENCES gtfs_routes(route_id)
-
 );
 
 create table gtfs_shapes (
@@ -216,11 +242,13 @@ create table gtfs_trips (
   service_id    text , --REFERENCES gtfs_calendar(service_id),
   trip_id text PRIMARY KEY,--PRIMARY KEY,
   trip_headsign text,
-  direction_id  int NOT NULL, --NOT NULL --REFERENCES gtfs_directions(direction_id),
+  trip_short_name text,
+  direction_id int NOT NULL, --NOT NULL --REFERENCES gtfs_directions(direction_id),
   block_id text,
   shape_id text,
-  wheelchair_accessible int,
+  wheelchair_accessible int,  --FOREIGN KEY REFERENCES gtfs_wheelchair_accessible(wheelchair_accessible)
   bikes_allowed int,
+
   -- unofficial features  
   trip_short_name text,
   FOREIGN KEY (route_id) REFERENCES gtfs_routes(route_id),
@@ -236,14 +264,10 @@ create table gtfs_stop_times (
   stop_headsign text,
   pickup_type   int , --REFERENCES gtfs_pickup_dropoff_types(type_id),
   drop_off_type int , --REFERENCES gtfs_pickup_dropoff_types(type_id),
-  shape_dist_traveled double precision
+  shape_dist_traveled double precision,
+  timepoint int,
 
   -- unofficial features
-  ,
-  timepoint int
-
-  -- the following are not in the spec
-  ,
   arrival_time_seconds int, 
   departure_time_seconds int,
 
@@ -266,16 +290,13 @@ create table gtfs_frequencies (
   start_time  text NOT NULL, --NOT NULL,
   end_time    text NOT NULL, --NOT NULL,
   headway_secs int NOT NULL, --NOT NULL
+
+  -- unofficial features
   start_time_seconds int,
   end_time_seconds int,
+
   FOREIGN KEY (trip_id) REFERENCES gtfs_trips(trip_id)
 );
-
-
-
-
-
--- unofficial tables
 
 
 create table gtfs_transfer_types (
@@ -298,11 +319,13 @@ create table gtfs_transfers (
   to_stop_id text, --REFERENCES gtfs_stops(stop_id)
   transfer_type int, --REFERENCES gtfs_transfer_types(transfer_type)
   min_transfer_time int,
+
+  -- unofficial features
   from_route_id text, --REFERENCES gtfs_routes(route_id)
   to_route_id text, --REFERENCES gtfs_routes(route_id)
   service_id text, --REFERENCES gtfs_calendar(service_id) ?
-  FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops(stop_id),
 
+  FOREIGN KEY (from_stop_id) REFERENCES gtfs_stops(stop_id),
   FOREIGN KEY (to_stop_id) REFERENCES gtfs_stops(stop_id),
   FOREIGN KEY (transfer_type) REFERENCES gtfs_transfer_types(transfer_type),
   FOREIGN KEY (from_route_id) REFERENCES gtfs_routes(route_id),
@@ -313,9 +336,14 @@ create table gtfs_transfers (
 create table gtfs_feed_info (
   feed_publisher_name text,
   feed_publisher_url text,
-  feed_timezone text,
   feed_lang text,
-  feed_version text
+  feed_start_date text,
+  feed_end_date text,
+  feed_version text,
+
+  -- unofficial features
+  feed_id text,
+  feed_timezone text
 );
 
 
