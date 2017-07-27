@@ -20,6 +20,7 @@ drop table gtfs_payment_methods cascade;
 
 drop table gtfs_location_types cascade;
 drop table gtfs_wheelchair_boardings cascade;
+drop table gtfs_wheelchair_accessible cascade;
 drop table gtfs_transfer_types cascade;
 
 drop table service_combo_ids cascade;
@@ -50,7 +51,7 @@ insert into gtfs_location_types(location_type, description)
 insert into gtfs_location_types(location_type, description) 
        values (2,'station entrance');
 
---related to gtf_stops(wheelchair_boarding)
+--related to gtfs_stops(wheelchair_boarding)
 create table gtfs_wheelchair_boardings (
   wheelchair_boarding int PRIMARY KEY,
   description text
@@ -63,6 +64,18 @@ insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
 insert into gtfs_wheelchair_boardings(wheelchair_boarding, description)
        values (2, 'Wheelchair boarding is not possible at this stop');
 
+--related to gtfs_stops(wheelchair_accessible)
+create table gtfs_wheelchair_accessible (
+  wheelchair_accessible int PRIMARY KEY,
+  description text
+);
+
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (0, 'No accessibility information available for this trip');
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (1, 'The vehicle being used on this particular trip can accommodate at least one rider in a wheelchair');
+insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
+        values (2, 'No riders in wheelchairs can be accommodated on this trip');
 
 create table gtfs_stops (
   stop_id    text ,--PRIMARY KEY,
@@ -226,6 +239,8 @@ create table gtfs_trips (
   block_id text,
   shape_id text,  
   trip_short_name text,
+  wheelchair_accessible int, --FOREIGN KEY REFERENCES gtfs_wheelchair_accessible(wheelchair_accessible)
+  bikes_allowed int, 
   -- unofficial features
   trip_type text
 );

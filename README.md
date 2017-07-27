@@ -1,3 +1,9 @@
+# Updates
+25 Sep 2015 - Update to include bikes fields in updated GTFS. Tested with Wellington GTF
+
+
+
+
 # About
 Quick & easy import of GTFS data into a SQL database.
 
