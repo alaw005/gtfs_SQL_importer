@@ -35,7 +35,8 @@ create table gtfs_agency (
   agency_timezone    text ,--NOT NULL,
   agency_lang  text,
   agency_phone text,
-  agency_fare_url text
+  agency_fare_url text,
+  agency_email text
 );
 
 --related to gtfs_stops(location_type)
@@ -79,29 +80,24 @@ insert into gtfs_wheelchair_accessible(wheelchair_accessible, description)
 
 create table gtfs_stops (
   stop_id    text ,--PRIMARY KEY,
+  stop_code  text,
   stop_name  text , --NOT NULL,
   stop_desc  text,
   stop_lat   double precision,
   stop_lon   double precision,
   zone_id    text,
   stop_url   text,
-  stop_code  text,
+  location_type int, --FOREIGN KEY REFERENCES gtfs_location_types(location_type)
+  parent_station text, --FOREIGN KEY REFERENCES gtfs_stops(stop_id)
+  stop_timezone text,
+  wheelchair_boarding int, --FOREIGN KEY REFERENCES gtfs_wheelchair_boardings(wheelchair_boarding)
 
-  -- new
+  -- unofficial
   stop_street text,
   stop_city   text,
   stop_region text,
   stop_postcode text,
   stop_country text,
-
-  -- unofficial features
-
-  location_type int, --FOREIGN KEY REFERENCES gtfs_location_types(location_type)
-  parent_station text, --FOREIGN KEY REFERENCES gtfs_stops(stop_id)
-  stop_timezone text,
-  wheelchair_boarding int --FOREIGN KEY REFERENCES gtfs_wheelchair_boardings(wheelchair_boarding)
-  -- Unofficial fields
-  ,
   direction text,
   position text
 );
@@ -156,40 +152,37 @@ insert into gtfs_pickup_dropoff_types (type_id, description) values (2,'Phone ar
 insert into gtfs_pickup_dropoff_types (type_id, description) values (3,'Driver arrangement only');
 
 
-
 -- CREATE INDEX gst_trip_id_stop_sequence ON gtfs_stop_times (trip_id, stop_sequence);
 
 create table gtfs_calendar (
-  service_id   text ,--PRIMARY KEY,
-  monday int , --NOT NULL,
-  tuesday int , --NOT NULL,
-  wednesday    int , --NOT NULL,
-  thursday     int , --NOT NULL,
-  friday int , --NOT NULL,
-  saturday     int , --NOT NULL,
-  sunday int , --NOT NULL,
-  start_date   date , --NOT NULL,
+  service_id   text, --PRIMARY KEY,
+  monday       int, --NOT NULL,
+  tuesday      int, --NOT NULL,
+  wednesday    int, --NOT NULL,
+  thursday     int, --NOT NULL,
+  friday       int, --NOT NULL,
+  saturday     int, --NOT NULL,
+  sunday       int, --NOT NULL,
+  start_date   date, --NOT NULL,
   end_date     date  --NOT NULL
 );
 
 create table gtfs_calendar_dates (
-  service_id     text , --REFERENCES gtfs_calendar(service_id),
-  date     date , --NOT NULL,
+  service_id     text, --REFERENCES gtfs_calendar(service_id),
+  date           date, --NOT NULL,
   exception_type int  --NOT NULL
 );
 
 -- The following two tables are not in the spec, but they make dealing with dates and services easier
-create table service_combo_ids
-(
-combination_id serial --primary key
+create table service_combo_ids (
+  combination_id serial --primary key
 );
-create table service_combinations
-(
-combination_id int , --references service_combo_ids(combination_id),
-service_id text --references gtfs_calendar(service_id)
+create table service_combinations (
+  combination_id int , --references service_combo_ids(combination_id),
+  service_id text --references gtfs_calendar(service_id)
 );
 
-
+-- The following table is not in the spec
 create table gtfs_payment_methods (
   payment_method int PRIMARY KEY,
   description text
@@ -200,25 +193,25 @@ insert into gtfs_payment_methods (payment_method, description) values (1,'Prepay
 
 
 create table gtfs_fare_attributes (
-  fare_id     text ,--PRIMARY KEY,
-  price double precision , --NOT NULL,
-  currency_type     text , --NOT NULL,
-  payment_method    int , --REFERENCES gtfs_payment_methods,
-  transfers   int,
-  transfer_duration int
+  fare_id           text,--PRIMARY KEY,
+  price             double precision, --NOT NULL,
+  currency_type     text, --NOT NULL,
+  payment_method    int, --REFERENCES gtfs_payment_methods,
+  transfers         int,
+  transfer_duration int,
+
   -- unofficial features
-  ,
   agency_id text  --REFERENCES gtfs_agency(agency_id)
 );
 
 create table gtfs_fare_rules (
-  fare_id     text , --REFERENCES gtfs_fare_attributes(fare_id),
-  route_id    text , --REFERENCES gtfs_routes(route_id),
-  origin_id   text ,
-  destination_id text ,
-  contains_id text 
+  fare_id     text, --REFERENCES gtfs_fare_attributes(fare_id),
+  route_id    text, --REFERENCES gtfs_routes(route_id),
+  origin_id   text,
+  destination_id text,
+  contains_id text,
+
   -- unofficial features
-  ,
   service_id text -- REFERENCES gtfs_calendar(service_id) ?
 );
 
@@ -235,12 +228,13 @@ create table gtfs_trips (
   service_id    text , --REFERENCES gtfs_calendar(service_id),
   trip_id text ,--PRIMARY KEY,
   trip_headsign text,
+  trip_short_name text,
   direction_id  int , --REFERENCES gtfs_directions(direction_id),
   block_id text,
   shape_id text,  
-  trip_short_name text,
   wheelchair_accessible int, --FOREIGN KEY REFERENCES gtfs_wheelchair_accessible(wheelchair_accessible)
   bikes_allowed int, 
+
   -- unofficial features
   trip_type text
 );
@@ -254,17 +248,12 @@ create table gtfs_stop_times (
   stop_headsign text,
   pickup_type   int , --REFERENCES gtfs_pickup_dropoff_types(type_id),
   drop_off_type int , --REFERENCES gtfs_pickup_dropoff_types(type_id),
-  shape_dist_traveled double precision
+  shape_dist_traveled double precision,
+  timepoint int,
 
   -- unofficial features
-  ,
-  timepoint int
-
-  -- the following are not in the spec
-  ,
   arrival_time_seconds int, 
   departure_time_seconds int
-
 );
 
 --create index arr_time_index on gtfs_stop_times(arrival_time_seconds);
@@ -278,12 +267,11 @@ create table gtfs_frequencies (
   end_time    text , --NOT NULL,
   headway_secs int , --NOT NULL
   exact_times int,
+
+  -- unofficial features
   start_time_seconds int,
   end_time_seconds int
 );
-
-
-
 
 
 create table gtfs_transfer_types (
@@ -306,7 +294,8 @@ create table gtfs_transfers (
   to_stop_id text, --REFERENCES gtfs_stops(stop_id)
   transfer_type int, --REFERENCES gtfs_transfer_types(transfer_type)
   min_transfer_time int,
-  -- Unofficial fields
+
+  -- unofficial features
   from_route_id text, --REFERENCES gtfs_routes(route_id)
   to_route_id text, --REFERENCES gtfs_routes(route_id)
   service_id text --REFERENCES gtfs_calendar(service_id) ?
@@ -316,11 +305,14 @@ create table gtfs_transfers (
 create table gtfs_feed_info (
   feed_publisher_name text,
   feed_publisher_url text,
-  feed_timezone text,
   feed_lang text,
-  feed_version text,
   feed_start_date text,
-  feed_end_date text
+  feed_end_date text,
+  feed_version text,
+
+  -- unofficial features
+  feed_id text,
+  feed_timezone text
 );
 
 
