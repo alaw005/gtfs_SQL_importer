@@ -1,4 +1,5 @@
 # Updates
+9 Aug 2017 - Added example script template for import. Also some SQL scripts to generate statistics
 25 Sep 2015 - Update to include bikes fields in updated GTFS. Tested with Wellington GTF
 
 

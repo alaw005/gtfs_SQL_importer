@@ -312,7 +312,9 @@ create table gtfs_feed_info (
 
   -- unofficial features
   feed_id text,
-  feed_timezone text
+  feed_timezone text,
+  feed_contact_email text,
+  feed_contact_url text
 );
 
 
