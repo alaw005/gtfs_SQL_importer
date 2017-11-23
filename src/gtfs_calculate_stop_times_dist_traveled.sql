@@ -12,8 +12,8 @@
 		Adam Lawrence <alaw005@gmail.com>
 */
 
-DROP FUNCTION IF EXISTS public.my_gtfs_calculate_stop_times_dist_traveled();
-CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_stop_times_dist_traveled() RETURNS integer AS $$
+DROP FUNCTION IF EXISTS my_gtfs_calculate_stop_times_dist_traveled();
+CREATE OR REPLACE FUNCTION my_gtfs_calculate_stop_times_dist_traveled() RETURNS integer AS $$
 DECLARE
     trip_row RECORD;
     my_trip text;

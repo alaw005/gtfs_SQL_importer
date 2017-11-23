@@ -11,14 +11,14 @@
 		Adam Lawrence <alaw005@gmail.com>
 */
 
-DROP FUNCTION IF EXISTS public.my_gtfs_calculate_shape_dist_traveled();
-CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_shape_dist_traveled() RETURNS integer AS $$
+DROP FUNCTION IF EXISTS my_gtfs_calculate_shape_dist_traveled();
+CREATE OR REPLACE FUNCTION my_gtfs_calculate_shape_dist_traveled() RETURNS integer AS $$
 DECLARE
 BEGIN
 
     RAISE NOTICE 'Starting...';
 
-    RAISE NOTICE 'Updating shape_dist_traveled in gtfs_shapes'
+    RAISE NOTICE 'Updating shape_dist_traveled in gtfs_shapes';
 	
     UPDATE gtfs_shapes SET
         shape_dist_traveled = b.shape_dist_traveled
