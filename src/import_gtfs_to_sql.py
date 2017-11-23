@@ -166,7 +166,6 @@ def import_file(fname, tablename, handler, COPY=True):
     if COPY:
         yield "\\.\n"
 
-
 if __name__ == "__main__":
     fnames = [
         "agency",
@@ -191,7 +190,7 @@ if __name__ == "__main__":
     handlers['frequencies'] = FrequenciesHandler()
 
     if len(sys.argv) not in (2, 3):
-        print "Usage: %s gtfs_data_dir [nocopy]" % sys.argv[0]
+        print "Usage: %s gtfs_feed.zip [nocopy]" % sys.argv[0]
         print "  If nocopy is present, then uses INSERT instead of COPY."
         sys.exit()
 
@@ -199,8 +198,27 @@ if __name__ == "__main__":
 
     print "begin;"
 
+    # Create temp folder
+    import tempfile
+    import shutil
+    tmpfeed = tempfile.mkdtemp()
+
+    # Unzip feed to temp folder or if folder copy folder contents to tmpfeed
+    if sys.argv[1].lower().endswith(('.zip')):  
+        import zipfile
+        zip = zipfile.ZipFile(sys.argv[1])
+        zip.extractall(tmpfeed)
+        zip.close()
+    else:
+        for filename in os.listdir(sys.argv[1]):
+            shutil.copy(os.path.join(sys.argv[1], filename), tmpfeed)
+
+    # Import GTFS feed
     for fname in fnames:
-        for statement in import_file(os.path.join(sys.argv[1], fname + ".txt"), "gtfs_" + fname, handlers[fname], use_copy):
+        for statement in import_file(os.path.join(tmpfeed, fname + ".txt"), "gtfs_" + fname, handlers[fname], use_copy):
             print statement
+
+    # Remove tempory feed directory
+    shutil.rmtree(tmpfeed)
 
     print "commit;"
