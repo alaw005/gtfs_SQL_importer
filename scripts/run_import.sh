@@ -15,6 +15,8 @@ cat $GTFS_TO_SQL_PATH/gtfs_tables.sql \
   <(python2 $GTFS_TO_SQL_PATH/import_gtfs_to_sql.py $GTFS_SOURCE_PATH) \
   $GTFS_TO_SQL_PATH/gtfs_tables_makespatial.sql \
   $GTFS_TO_SQL_PATH/gtfs_tables_makeindexes.sql \
+  $GTFS_TO_SQL_PATH/gtfs_calculate_shape_dist_traveled.sql \
+  $GTFS_TO_SQL_PATH/gtfs_calculate_stop_times_dist_traveled.sql \
   $GTFS_TO_SQL_PATH/vacuumer.sql \
   $GTFS_TO_SQL_PATH/gtfs_scripts.sql \
 | psql -h $DB_HOST -p $DB_PORT -U $DB_OWNER -d $DB_NAME
