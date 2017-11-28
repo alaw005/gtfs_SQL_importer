@@ -1,7 +1,8 @@
 # Updates
-9 Aug 2017 - Added example script template for import. Also some SQL scripts to generate statistics
-25 Sep 2015 - Update to include bikes fields in updated GTFS. Tested with Wellington GTF
-24 Nov 2017 - Revised to make easier to run using bash script
+- 9 Aug 2017 - Added example script template for import. Also some SQL scripts to generate statistics
+- 25 Sep 2015 - Update to include bikes fields in updated GTFS. Tested with Wellington GTF
+- 24 Nov 2017 - Revised to make easier to run using bash script
+- 29 Nov 2017 - Add calculation of shape distance and stop_time_distance on import
 
 # Quick start
 
@@ -14,8 +15,11 @@ Import feed (need to be in src folder for it to work as present):
 	cd src
 	bash run_import.sh feed.zip dbname
 
+NB: This will repalce existing database tables.
+
 All other instructions below are older. Note latest changes are only applied to postgis
 and may not work in sqlite.
+
 
 
 # About
