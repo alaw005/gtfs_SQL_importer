@@ -22,22 +22,33 @@ DECLARE
     excl text[];
     command text;
     address text;
+    formated_text text;
 BEGIN
 
 	-- Specify columns to exclude from export (table.column) 
-	excl = ARRAY['gtfs_stops.stop_street',
+	excl = ARRAY['gtfs_agency.agency_email',
+				 'gtfs_agency.the_geom',
+                 'gtfs_fare_rules.service_id',
+                 'gtfs_feed_info.feed_id',
+                 'gtfs_feed_info.feed_contact_email',
+                 'gtfs_feed_info.feed_contact_url',
+				 'gtfs_feed_info.feed_timezone',
+                 'gtfs_frequencies.start_time_seconds',
+                 'gtfs_frequencies.end_time_seconds',
+                 'gtfs_stops.stop_street',
                  'gtfs_stops.stop_city',
                  'gtfs_stops.stop_region',
                  'gtfs_stops.stop_postcode',
                  'gtfs_stops.stop_country',
                  'gtfs_stops.direction',
                  'gtfs_stops.position',
-				 'gtfs_feed_info.feed_timezone',
-				 'agency.agency_email',
-				 'agency.the_geom',
-				 'agency.to_route_id',
-				 'agency.service_id',
-				 'agency.from_route_id'
+                 'gtfs_stops.the_geom',
+                 'gtfs_stop_times.arrival_time_seconds',
+                 'gtfs_stop_times.departure_time_seconds',
+                 'gtfs_transfers.from_route_id',
+                 'gtfs_transfers.to_route_id',
+                 'gtfs_transfers.service_id',
+                 'gtfs_trips.trip_type'
 				 ];
                
     -- Initialise string to hold command
@@ -60,11 +71,17 @@ BEGIN
         LOOP
         
             IF NOT ARRAY[(gtfs_table || '.' || col_row.column_name)] && excl THEN
-        
-                IF sql_cols  = '' THEN
-                    sql_cols = col_row.column_name;
+            
+                IF col_row.column_name = ANY ( ARRAY['start_date', 'end_date', 'date']) THEN
+                    formated_text = 'to_char(' || col_row.column_name || ', ''YYYYMMDD'') AS ' || col_row.column_name;
                 ELSE
-                    sql_cols = sql_cols || ', '  || col_row.column_name;
+                    formated_text = col_row.column_name;
+                END IF;
+                
+                IF sql_cols  = '' THEN
+                    sql_cols = formated_text;
+                ELSE
+                    sql_cols = sql_cols || ', '  || formated_text;
                 END IF;
                 
             END IF;
@@ -91,5 +108,4 @@ $$ LANGUAGE plpgsql;
 
 -- Generate script, copy and paste this elsewhere to run
 SELECT * FROM my_export_tables();
-
 
