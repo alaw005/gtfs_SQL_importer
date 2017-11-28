@@ -1,4 +1,5 @@
 
+
 /*
     Generate distance travelled data for GTFS [stop_times] table  
 
@@ -12,15 +13,16 @@
 		Adam Lawrence <alaw005@gmail.com>
 */
 
-DROP FUNCTION IF EXISTS my_gtfs_calculate_stop_times_dist_traveled();
-CREATE OR REPLACE FUNCTION my_gtfs_calculate_stop_times_dist_traveled() RETURNS integer AS $$
+DROP FUNCTION IF EXISTS public.my_gtfs_calculate_stop_times_dist_traveled();
+CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_stop_times_dist_traveled() RETURNS integer AS $$
 DECLARE
-    trip_row RECORD;
-    my_trip text;
-	my_edge_id integer;
-	my_previous_edge_id integer;
-    my_edge_length float(8);
-    my_distance float(8);
+
+    my_current_trip RECORD;
+    my_trip_id text;
+    my_shape_pt_sequence integer;
+    my_previous_shape_pt_sequence integer;
+    my_segment_distance integer;
+	
 BEGIN
 
     RAISE NOTICE 'Starting...';
@@ -30,8 +32,9 @@ BEGIN
 	*/ 
 	
 	RAISE NOTICE 'Creating edges table for network routing';
-	
-	CREATE TEMP TABLE tmp_edges AS 
+
+	DROP TABLE IF EXISTS tmp_edges;
+	CREATE  TABLE tmp_edges AS 
 		SELECT
 			row_number() OVER ()::integer -1 AS id,
 			tmp_nodes.shape_id,
@@ -60,7 +63,8 @@ BEGIN
 	-- NB: This is to ensure bus stop coorinates are along the relevant shape,
 	-- but may not actually be necessary as matching query below now matches	
 	-- stops to the nearest shape.
-	CREATE TEMP TABLE tmp_trips AS
+	DROP TABLE IF EXISTS tmp_trips;
+	CREATE  TABLE tmp_trips AS
 		SELECT
 			row_number() OVER ()::integer AS id,
 			gtfs_trips.trip_id,
@@ -81,24 +85,18 @@ BEGIN
 
 	RAISE NOTICE 'Creating stop times with bus stop coordinates snapped to shape';
 
-	CREATE TEMP TABLE tmp_stop_times AS
+	DROP TABLE IF EXISTS tmp_stop_times;
+	CREATE  TABLE tmp_stop_times AS
 		SELECT 
 			row_number() OVER ()::integer AS id,
 			gtfs_stop_times.trip_id,
-			tmp_trips.route_id,
-			tmp_trips.shape_id,
 			gtfs_stop_times.stop_sequence,
 			gtfs_stop_times.stop_id,
 			gtfs_stops.stop_name,
-			ST_ClosestPoint(
-					tmp_trips.the_geom,
-					ST_Transform(ST_SetSRID(ST_MakePoint(stop_lon, stop_lat), 4326), 2193)
-				)::geometry(Point,2193) AS the_geom,
-			NULL::float(8) AS cumul_dist_traveled,
-			NULL::integer AS edge_id,
-			NULL::float(8) AS edge_length,
-			NULL::float(8) AS edge_proportion,
-			NULL::float(8) AS edge_dist_traveled
+            ST_Transform(ST_SetSRID(ST_MakePoint(stop_lon, stop_lat), 4326), 2193)::geometry(Point,2193) AS the_geom,
+			tmp_trips.shape_id,
+            NULL::integer AS shape_pt_sequence,
+            NULL::integer AS cumul_dist_traveled
 		FROM gtfs_stop_times
 			LEFT JOIN gtfs_stops ON gtfs_stops.stop_id = gtfs_stop_times.stop_id
 			LEFT JOIN tmp_trips ON tmp_trips.trip_id = gtfs_stop_times.trip_id
@@ -108,92 +106,89 @@ BEGIN
 	CREATE INDEX tmp_stop_times_geom_gix ON tmp_stop_times USING GIST (the_geom);
 
 	/*
-        Match using network edges
+        Match to shape
 	*/
 
 	RAISE NOTICE 'Start matching ...';
     
 	-- Initialise variable for tracking current trip_id so can start
     -- matching from beginning of shape for each trip_id
-	my_trip = '';
+	my_trip_id = '';
     
 	-- Loop through each stop in trip_stop_times in order so can match
     -- to shape
- 	FOR trip_row IN 
+ 	FOR my_current_trip IN 
         SELECT
             id,
-            shape_id,
             trip_id,
             stop_sequence,
             the_geom,
-            edge_id,
-            edge_length,
-            edge_proportion
+            shape_id
         FROM tmp_stop_times
         ORDER BY trip_id, stop_sequence
     LOOP
 
-		-- Reset edge matching when move to next trip
-		IF my_trip <> trip_row.trip_id THEN 
-		    my_previous_edge_id = 0;
-            RAISE NOTICE 'Importing trip #%s', my_trip;
+		-- Reset sequence to start of shape sequence
+		IF my_trip_id <> my_current_trip.trip_id THEN
+			my_trip_id = my_current_trip.trip_id;
+		    my_previous_shape_pt_sequence = (SELECT Min(shape_pt_sequence) FROM tmp_edges WHERE shape_id = my_current_trip.shape_id );
+            RAISE NOTICE 'Importing trip #%s', my_trip_id;
         END IF;
-        my_trip = trip_row.trip_id;
         
-        -- Locate next edge_id
+        -- Locate next point in shape sequence and distance along the last shape segment
 		SELECT
-            tmp_edges.id,
-            tmp_edges.cost,
-            ST_LineLocatePoint(tmp_edges.the_geom, trip_row.the_geom)
+        	shape_pt_sequence,
+            COALESCE(tmp_edges.cost * ST_LineLocatePoint(tmp_edges.the_geom, my_current_trip.the_geom), 0)
         INTO 
-        	my_edge_id, my_edge_length, my_distance
+        	my_shape_pt_sequence, my_segment_distance
         FROM tmp_edges
-        WHERE tmp_edges.shape_id = trip_row.shape_id 
-            AND tmp_edges.id >= my_previous_edge_id
-            AND ST_DWithin(tmp_edges.the_geom, trip_row.the_geom, 100) /* Search within 100m */
+        WHERE tmp_edges.shape_id = my_current_trip.shape_id 
+            AND tmp_edges.shape_pt_sequence::integer > my_previous_shape_pt_sequence
+            AND ST_DWithin(tmp_edges.the_geom, my_current_trip.the_geom, 200) /* Search within 200m */
         ORDER BY 
-            ST_Distance(tmp_edges.the_geom, trip_row.the_geom) /* Get closest match within 100m */
+			tmp_edges.shape_id,
+            ST_Distance(tmp_edges.the_geom, my_current_trip.the_geom), /* Get closest first */
+            tmp_edges.shape_pt_sequence::integer /* Get the first point in sequence within 200m */
         LIMIT 1;
+        
+        -- Calculate cumulative distance
+        UPDATE tmp_stop_times SET 
+        	shape_pt_sequence = my_shape_pt_sequence,
+        	cumul_dist_traveled = (SELECT 
+                                       		COALESCE(SUM(COST),0) AS distance
+                                       FROM tmp_edges
+                                       WHERE shape_id = my_current_trip.shape_id AND shape_pt_sequence < my_shape_pt_sequence) + my_segment_distance
+        WHERE 
+        	tmp_stop_times.id = my_current_trip.id;
 
-		-- update edge_id in stops table
-		UPDATE tmp_stop_times SET
-        	edge_id = my_edge_id,
-            edge_length = my_edge_length,
-            edge_proportion = my_distance,
-            edge_dist_traveled = (my_edge_length * my_distance)::integer
-        WHERE tmp_stop_times.id = trip_row.id;
-
-		-- Update previous edge for next loop
-        my_previous_edge_id = my_edge_id;
+		-- Update previous shape_pt_sequence for reference in next loop
+        my_previous_shape_pt_sequence = my_shape_pt_sequence ;
 
     END LOOP;
 
-	RAISE NOTICE 'Matching complete ... running final calculations';
-    
-    RAISE NOTICE 'Calculating cumulative distance to nearest metre';
+	RAISE NOTICE 'Remove offsets between first stop and start of shape';
 	
-    UPDATE tmp_stop_times AS a SET
-        /* Sum from beginning of shape, not from first matched edge */
-    	cumul_dist_traveled = ((SELECT COALESCE(SUM(cost),0) FROM tmp_edges WHERE tmp_edges.shape_id = a.shape_id AND tmp_edges.id <= b.previous_edge) + b.edge_dist_traveled)::integer
-    FROM (SELECT
-                id,
-                FIRST_VALUE(edge_id) OVER w AS first_edge,
-                LAST_VALUE(edge_id-1) OVER w AS previous_edge,
-          		edge_dist_traveled
+	UPDATE tmp_stop_times SET
+    	cumul_dist_traveled = cumul_dist_traveled - a.min_dist
+	FROM (SELECT 
+                trip_id,
+                Min(cumul_dist_traveled) AS min_dist
             FROM tmp_stop_times
-            WINDOW w AS (PARTITION BY trip_id ORDER BY stop_sequence)) AS b
-	WHERE a.id = b.id;
-
-	RAISE NOTICE 'Updating stop_times with cumulative distance calculation';
+            GROUP BY trip_id) AS a
+	WHERE tmp_stop_times.trip_id = a.trip_id;
 	
-	UPDATE gtfs_stop_times
+	RAISE NOTICE 'Updating stop_times with results of calculation';
+	
+    UPDATE gtfs_stop_times
     	SET shape_dist_traveled = a.cumul_dist_traveled
     FROM tmp_stop_times AS a
     WHERE a.trip_id = gtfs_stop_times.trip_id AND a.stop_sequence = gtfs_stop_times.stop_sequence;
-
+    
+    
     RAISE NOTICE 'Finished.';
     RETURN 1;
-    
+
+
 END;
 $$ LANGUAGE plpgsql;
 

@@ -1,4 +1,9 @@
 /*
+	Required GTFS tables (do a find and replace if your database has different table names):
+		gtfs_shapes, gtfs_trips, gtfs_stop_times, gtfs_stops
+*/
+
+/*
     Generate distance travelled data for GTFS shapes file
 	
 	Function:
@@ -11,8 +16,8 @@
 		Adam Lawrence <alaw005@gmail.com>
 */
 
-DROP FUNCTION IF EXISTS my_gtfs_calculate_shape_dist_traveled();
-CREATE OR REPLACE FUNCTION my_gtfs_calculate_shape_dist_traveled() RETURNS integer AS $$
+DROP FUNCTION IF EXISTS public.my_gtfs_calculate_shape_dist_traveled();
+CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_shape_dist_traveled() RETURNS integer AS $$
 DECLARE
 BEGIN
 
@@ -42,6 +47,5 @@ $$ LANGUAGE plpgsql;
 
 -- Execute function
 SELECT FROM my_gtfs_calculate_shape_dist_traveled();
-
 
 
