@@ -1,5 +1,4 @@
 
-
 /*
     Generate distance travelled data for GTFS [stop_times] table  
 
@@ -194,4 +193,3 @@ $$ LANGUAGE plpgsql;
 
 -- Execute function
 SELECT FROM my_gtfs_calculate_stop_times_dist_traveled();
-
