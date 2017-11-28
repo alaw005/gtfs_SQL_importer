@@ -1,4 +1,3 @@
-
 /*
     Generate distance travelled data for GTFS [stop_times] table  
 
@@ -130,7 +129,7 @@ BEGIN
 		-- Reset sequence to start of shape sequence
 		IF my_trip_id <> my_current_trip.trip_id THEN
 			my_trip_id = my_current_trip.trip_id;
-		    my_previous_shape_pt_sequence = (SELECT Min(shape_pt_sequence) FROM tmp_edges WHERE shape_id = my_current_trip.shape_id );
+		    my_previous_shape_pt_sequence = 0;
             RAISE NOTICE 'Importing trip #%s', my_trip_id;
         END IF;
         
@@ -142,7 +141,7 @@ BEGIN
         	my_shape_pt_sequence, my_segment_distance
         FROM tmp_edges
         WHERE tmp_edges.shape_id = my_current_trip.shape_id 
-            AND tmp_edges.shape_pt_sequence::integer > my_previous_shape_pt_sequence
+            AND tmp_edges.shape_pt_sequence::integer >= my_previous_shape_pt_sequence /* Could match previous point but further along line */
             AND ST_DWithin(tmp_edges.the_geom, my_current_trip.the_geom, 200) /* Search within 200m */
         ORDER BY 
 			tmp_edges.shape_id,
