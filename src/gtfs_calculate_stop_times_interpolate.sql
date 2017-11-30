@@ -44,18 +44,19 @@ BEGIN
     CREATE INDEX gtfs_stop_times_stop_sequence_idx ON gtfs_stop_times (stop_sequence);
     */
 
-	-- Set existing times as timepoints (NB: This may not be valid, if only filling
-    -- in some gaps)
+    -- Set existing times as timepoints (NB: This may not be valid, if only filling
+    -- in some gaps). The test for timepoint <> 0 is to ensure any stops explicity
+    -- identified as not being timepoints (i.e. 0 not null) do not become timepoints 
     IF set_timepoints THEN
 	    UPDATE gtfs_stop_times SET
     	    timepoint = 1
-    	WHERE arrival_time IS NOT NULL;
+    	WHERE arrival_time IS NOT NULL AND timepoint <> 0;
 	END IF;
-    
-	-- Initialise trip
+
+    -- Initialise trip
     my_current_trip_id = '';
     
-	-- Loop through each stop in trip_stop_times in order so can match
+    -- Loop through each stop in trip_stop_times in order so can match
     -- to shape
  	FOR my_current_row IN 
         SELECT
@@ -65,7 +66,7 @@ BEGIN
         ORDER BY trip_id, stop_sequence
     LOOP
     	
-		--RAISE NOTICE 'Importing trip #% - %', my_current_row.trip_id, my_current_row.stop_sequence;
+        --RAISE NOTICE 'Importing trip #% - %', my_current_row.trip_id, my_current_row.stop_sequence;
     
     	IF my_current_trip_id <> my_current_row.trip_id THEN
         	my_current_trip_id = my_current_row.trip_id;
