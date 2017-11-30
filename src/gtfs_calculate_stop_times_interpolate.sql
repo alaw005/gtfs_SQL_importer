@@ -6,7 +6,7 @@
 /*
     Generate arrival_time and departure_time for GTFS stop_times. Requires shape_dist_traveled
     to have been generated first in order to interpolate times.
-
+	
 	Function:
 		my_gtfs_calculate_stop_times()
 
@@ -44,7 +44,7 @@ BEGIN
     CREATE INDEX gtfs_stop_times_stop_sequence_idx ON gtfs_stop_times (stop_sequence);
     */
 
-    -- Set existing times as timepoints (NB: This may not be valid, if only filling
+	-- Set existing times as timepoints (NB: This may not be valid, if only filling
     -- in some gaps). The test for timepoint <> 0 is to ensure any stops explicity
     -- identified as not being timepoints (i.e. 0 not null) do not become timepoints 
     IF set_timepoints THEN
@@ -52,7 +52,7 @@ BEGIN
     	    timepoint = 1
     	WHERE arrival_time IS NOT NULL AND timepoint IS NULL;
 	END IF;
-
+    
     -- Initialise trip
     my_current_trip_id = '';
     
@@ -75,13 +75,13 @@ BEGIN
     
     	-- Get previous timing point
     	SELECT
-        	arrival_time,
+        	departure_time,
             shape_dist_traveled
   		INTO
         	myprevious_time, 
             myprevious_dist
         FROM gtfs_stop_times
-		WHERE arrival_time IS NOT NULL
+		WHERE departure_time IS NOT NULL
                 AND trip_id = my_current_row.trip_id 
                 AND stop_sequence <= my_current_row.stop_sequence 
         ORDER BY stop_sequence DESC 
@@ -107,8 +107,8 @@ BEGIN
         my_seconds_per_metre = CASE WHEN my_segment_metres = 0 THEN NULL ELSE my_segment_seconds::float(8) / my_segment_metres::float(8) END;
 		
         -- Determine time and timepoint flag
-        IF my_current_row.arrival_time IS NOT NULL THEN
-        	my_current_stop_time = my_current_row.arrival_time::time;
+        IF my_current_row.departure_time IS NOT NULL THEN
+        	my_current_stop_time = my_current_row.departure_time::time;
             my_timepoint_flag = my_current_row.timepoint;
         ELSE
 			my_current_stop_time = (round((EXTRACT(EPOCH FROM my_current_stop_time) + (my_current_row.inc_distance * my_seconds_per_metre)) / 60 ) * interval '1 minute')::time;
@@ -128,7 +128,6 @@ BEGIN
    
     RAISE NOTICE 'Finished.';
     RETURN 1;
-
 
 END;
 $$ LANGUAGE plpgsql;
