@@ -50,7 +50,7 @@ BEGIN
     IF set_timepoints THEN
 	    UPDATE gtfs_stop_times SET
     	    timepoint = 1
-    	WHERE arrival_time IS NOT NULL AND timepoint <> 0;
+    	WHERE arrival_time IS NOT NULL AND timepoint IS NULL;
 	END IF;
 
     -- Initialise trip
