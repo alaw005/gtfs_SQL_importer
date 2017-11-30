@@ -3,22 +3,35 @@
 - 25 Sep 2015 - Update to include bikes fields in updated GTFS. Tested with Wellington GTF
 - 24 Nov 2017 - Revised to make easier to run using bash script
 - 29 Nov 2017 - Add calculation of shape distance and stop_time_distance on import
+- 1 Dec 2017 - Add interpolation of arrival/departure times and updated distance travelled script
 
 # Quick start
 
-Edit the database settings (DB_HOST, DB_PORT, DB_USER) in import script:
+This quick start uses the run_import bash script (Ubuntu):
+
+1. Download source using git.
+
+	git clone https://github.com/alaw005/gtfs_SQL_importer.git
+
+2. Edit the database settings (DB_HOST, DB_PORT, DB_USER) in the bash script to match your local settings:
 
 	nano src/run_import.sh
 
-Import feed (need to be in src folder for it to work as present):
+3. Import feed (NB: You need to run from within the src folder):
 
 	cd src
 	bash run_import.sh feed.zip dbname
 
-NB: This will repalce existing database tables.
+If dbname already exists, the script will replace all gtfs data (delete and recreated 
+tables) and if you do not specify a dbname then "gtfs_tmp" will be used as the database.
 
-All other instructions below are older. Note latest changes are only applied to postgis
-and may not work in sqlite.
+Also, feed.zip should be path to zipped version of a feed or to a folder with relevant 
+.txt files in level level.
+ 
+4. Done!
+
+All other instructions below are older, most prior to fork. Note latest changes are only 
+tested with postgis database and likely will not work in sqlite.
 
 
 
