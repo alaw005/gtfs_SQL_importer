@@ -1,16 +1,19 @@
-/*
-    Required GTFS tables (do a find and replace if your database has different table names):
-        gtfs_stop_times
-*/
-
-/*
-    Generate arrival_time and departure_time for GTFS stop_times. Requires shape_dist_traveled
-    to have been generated first in order to interpolate times.
-    
+/*   
     Function:
-        my_gtfs_calculate_stop_times()
+        my_gtfs_calculate_stop_times(set_timepoints boolean DEFAULT True)
 
-    Required GTFS tables:
+    Description:
+        Interpolates arrival_time and departure_time for GTFS stop_times. 
+        
+        Requires shape_dist_traveled to have been generated first. Interpolated times are
+        assigned timepoint = 0, with actual times assigned timepoint = 1 (with an option to
+        leave timepoint with its current value for actual times by passing False into 
+        function.
+        
+       set_timepoints = True) to set timepoint = 1
+        for known stop_times.
+        
+    Required GTFS tables (do a find and replace if your database has different table names):
         gtfs_stop_times
                 
     Author:
@@ -32,18 +35,16 @@ DECLARE
     my_seconds_per_metre float(8);
      
     my_current_trip_id text;
-    my_current_stop_time time;
+    my_current_stop_time interval; /* Use interval rather than time to support times after 24:00:00 */
     my_timepoint_flag integer;
     
 BEGIN
 
     RAISE NOTICE 'Starting...';
-    
-    /*
-    CREATE INDEX gtfs_stop_times_trip_id_idx ON gtfs_stop_times (trip_id);
-    CREATE INDEX gtfs_stop_times_stop_sequence_idx ON gtfs_stop_times (stop_sequence);
-    */
 
+    -- timepoint column should be integer (not boolean) so outputs 0/1 as appropriate (not true/false)
+    ALTER TABLE gtfs_stop_times ALTER COLUMN timepoint TYPE integer USING timepoint::integer;
+    
     -- Set existing times as timepoints (NB: This may not be valid, if only filling
     -- in some gaps). The test for timepoint <> 0 is to ensure any stops explicity
     -- identified as not being timepoints (i.e. 0 not null) do not become timepoints 
@@ -70,7 +71,7 @@ BEGIN
     
         IF my_current_trip_id <> my_current_row.trip_id THEN
             my_current_trip_id = my_current_row.trip_id;
-            my_current_stop_time = my_current_row.arrival_time::time;           
+            my_current_stop_time = my_current_row.arrival_time::interval;           
         END IF;
     
         -- Get previous timing point
@@ -103,15 +104,15 @@ BEGIN
        
         -- Calculations
         my_segment_metres = mynext_dist::integer - myprevious_dist::integer;
-        my_segment_seconds = EXTRACT(EPOCH FROM mynext_time::time - myprevious_time::time);
+        my_segment_seconds = EXTRACT(EPOCH FROM mynext_time::interval - myprevious_time::interval);
         my_seconds_per_metre = CASE WHEN my_segment_metres = 0 THEN NULL ELSE my_segment_seconds::float(8) / my_segment_metres::float(8) END;
     
         -- Determine time and timepoint flag
         IF my_current_row.departure_time IS NOT NULL THEN
-            my_current_stop_time = my_current_row.departure_time::time;
+            my_current_stop_time = my_current_row.departure_time::interval;
             my_timepoint_flag = my_current_row.timepoint;
         ELSE
-            my_current_stop_time = (round((EXTRACT(EPOCH FROM my_current_stop_time) + (my_current_row.inc_distance * my_seconds_per_metre)) ) * interval '1 second')::time;
+            my_current_stop_time = (round((EXTRACT(EPOCH FROM my_current_stop_time) + (my_current_row.inc_distance * my_seconds_per_metre)) ) * interval '1 second')::interval;
             my_timepoint_flag = 0; /* explicity state that approximate */
         END IF;
      

@@ -1,8 +1,57 @@
-/*
-    Generate distance travelled data for GTFS [stop_times] table  
+/*       
+	Function:
+		my_gtfs_calculate_shape_dist_traveled()
 
+    Description
+        Generate sdistance travelled data for GTFS shapes file
+        
+	Required GTFS tables:
+		gtfs_shapes
+				
+	Author:
+		Adam Lawrence <alaw005@gmail.com>
+*/
+DROP FUNCTION IF EXISTS public.my_gtfs_calculate_shape_dist_traveled();
+CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_shape_dist_traveled() RETURNS integer AS $$
+DECLARE
+BEGIN
+
+    RAISE NOTICE 'Starting...';
+
+    RAISE NOTICE 'Updating shape_dist_traveled in gtfs_shapes';
+	
+    UPDATE gtfs_shapes SET
+        shape_dist_traveled = b.shape_dist_traveled
+    FROM (SELECT /* cumulative sum of segment lengths */
+                shape_id, 
+                shape_pt_sequence,
+                SUM(dist) OVER (PARTITION BY shape_id ORDER BY shape_pt_sequence) AS shape_dist_traveled
+            FROM (SELECT /* Calculate segment lengths */
+                        shape_id, 
+                        shape_pt_sequence,
+                        COALESCE(ST_Length(ST_Transform(ST_SetSRID(ST_MakeLine(ST_MakePoint(shape_pt_lon, shape_pt_lat), ST_MakePoint(LAG(shape_pt_lon, 1) OVER w, LAG(shape_pt_lat, 1) OVER w)), 4326), 2193)), 0)::integer AS dist
+                    FROM gtfs_shapes
+                    WINDOW w AS (PARTITION BY shape_id ORDER BY shape_pt_sequence)) AS a) AS b
+    WHERE gtfs_shapes.shape_id = b.shape_id AND gtfs_shapes.shape_pt_sequence = b.shape_pt_sequence;
+
+    RAISE NOTICE 'Finished.';
+    RETURN 1;
+    
+END;
+$$ LANGUAGE plpgsql;
+
+-- Execute function
+SELECT FROM my_gtfs_calculate_shape_dist_traveled();
+
+
+
+
+/*
 	Function:
         my_gtfs_calculate_stop_times_dist_traveled()
+        
+    Description
+        Generates distance travelled data for GTFS stop_times (using shapes file)
 
 	Required GTFS tables:
 		gtfs_shapes, gtfs_trips, gtfs_stop_times, gtfs_stops
@@ -10,7 +59,6 @@
 	Author:
 		Adam Lawrence <alaw005@gmail.com>
 */
-
 DROP FUNCTION IF EXISTS public.my_gtfs_calculate_stop_times_dist_traveled();
 CREATE OR REPLACE FUNCTION public.my_gtfs_calculate_stop_times_dist_traveled() RETURNS integer AS $$
 DECLARE
@@ -107,7 +155,7 @@ BEGIN
         Match to shape
 	*/
 
-	RAISE NOTICE 'Start matching ...';
+	RAISE NOTICE 'Calculate stop_time distances (this may take some time)';
     
 	-- Initialise variable for tracking current trip_id so can start
     -- matching from beginning of shape for each trip_id
@@ -129,8 +177,8 @@ BEGIN
 		-- Reset sequence to start of shape sequence
 		IF my_trip_id <> my_current_trip.trip_id THEN
 			my_trip_id = my_current_trip.trip_id;
-		    my_previous_shape_pt_sequence = 0;
-            RAISE NOTICE 'Importing trip #%s', my_trip_id;
+		    my_previous_shape_pt_sequence = 0::integer; 
+            -- RAISE NOTICE 'Importing trip #%s', my_trip_id;
         END IF;
         
         -- Locate next point in shape sequence and distance along the last shape segment
@@ -152,10 +200,10 @@ BEGIN
         -- Calculate cumulative distance
         UPDATE tmp_stop_times SET 
         	shape_pt_sequence = my_shape_pt_sequence,
-        	cumul_dist_traveled = (SELECT 
-                                       		COALESCE(SUM(COST),0) AS distance
-                                       FROM tmp_edges
-                                       WHERE shape_id = my_current_trip.shape_id AND shape_pt_sequence < my_shape_pt_sequence) + my_segment_distance
+        	cumul_dist_traveled = (SELECT
+                                        COALESCE(SUM(COST),0) AS distance
+                                   FROM tmp_edges
+                                   WHERE shape_id = my_current_trip.shape_id AND shape_pt_sequence < my_shape_pt_sequence) + my_segment_distance
         WHERE 
         	tmp_stop_times.id = my_current_trip.id;
 
