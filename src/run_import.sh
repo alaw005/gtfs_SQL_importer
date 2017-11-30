@@ -36,5 +36,6 @@ cat gtfs_tables.sql \
   gtfs_tables_makeindexes.sql \
   gtfs_calculate_shape_dist_traveled.sql \
   gtfs_calculate_stop_times_dist_traveled.sql \
+  gtfs_calculate_stop_times_interpolate.sql \
   vacuumer.sql \
 | psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
