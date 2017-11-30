@@ -10,12 +10,15 @@
 This quick start uses the run_import bash script (Ubuntu):
 
 1. Download source using git.
+
         git clone https://github.com/alaw005/gtfs_SQL_importer.git
 
 2. Edit the database settings (DB_HOST, DB_PORT, DB_USER) in the bash script to match your local settings:
+
         nano src/run_import.sh
 
 3. Import feed (NB: You need to run from within the src folder):
+
         cd src
         bash run_import.sh feed.zip dbname
 
