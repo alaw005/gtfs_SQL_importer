@@ -99,7 +99,8 @@ create table gtfs_stops (
   stop_postcode text,
   stop_country text,
   direction text,
-  position text
+  position text,
+  platform_code text
 );
 
 -- select AddGeometryColumn( 'gtfs_stops', 'location', #{WGS84_LATLONG_EPSG}, 'POINT', 2 );
@@ -129,7 +130,12 @@ create table gtfs_routes (
   route_type  int , --REFERENCES gtfs_route_types(route_type),
   route_url   text,
   route_color text,
-  route_text_color  text
+  route_text_color  text,
+
+  -- unofficial
+  min_headway_minutes text,
+  route_sort_order text
+ 
 );
 
 create table gtfs_directions (
@@ -164,13 +170,20 @@ create table gtfs_calendar (
   saturday     int, --NOT NULL,
   sunday       int, --NOT NULL,
   start_date   date, --NOT NULL,
-  end_date     date  --NOT NULL
+  end_date     date,  --NOT NULL,
+
+  -- unofficial
+  service_name text
+
 );
 
 create table gtfs_calendar_dates (
   service_id     text, --REFERENCES gtfs_calendar(service_id),
   date           date, --NOT NULL,
-  exception_type int  --NOT NULL
+  exception_type int,  --NOT NULL
+
+  -- unofficial
+  holiday_name text
 );
 
 -- The following two tables are not in the spec, but they make dealing with dates and services easier
@@ -253,7 +266,11 @@ create table gtfs_stop_times (
 
   -- unofficial features
   arrival_time_seconds int, 
-  departure_time_seconds int
+  departure_time_seconds int,
+  continuous_stops text,
+  area_id text,
+  service_area_radius text
+
 );
 
 --create index arr_time_index on gtfs_stop_times(arrival_time_seconds);
@@ -314,7 +331,8 @@ create table gtfs_feed_info (
   feed_id text,
   feed_timezone text,
   feed_contact_email text,
-  feed_contact_url text
+  feed_contact_url text,
+  feed_license text
 );
 
 

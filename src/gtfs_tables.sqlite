@@ -100,7 +100,8 @@ create table gtfs_stops (
   stop_postcode text,
   stop_country text,
   direction text,
-  position text
+  position text,
+  platform_code text,
 
   FOREIGN KEY (location_type) REFERENCES gtfs_location_types(location_type),
   FOREIGN KEY (parent_station) REFERENCES gtfs_stops(stop_id)
@@ -134,6 +135,11 @@ create table gtfs_routes (
   route_url   text,
   route_color text,
   route_text_color  text,
+
+  -- unofficial
+  route_sort_order text,
+  min_headway_minutes text,
+
   FOREIGN KEY (agency_id) REFERENCES gtfs_agency(agency_id),
   FOREIGN KEY (route_type) REFERENCES gtfs_route_types(route_type)
 );
@@ -170,14 +176,20 @@ create table gtfs_calendar (
   saturday     int NOT NULL, --NOT NULL,
   sunday int NOT NULL, --NOT NULL,
   start_date   date NOT NULL, --NOT NULL,
-  end_date     date NOT NULL --NOT NULL
+  end_date     date NOT NULL, --NOT NULL
+
+  -- unofficial
+  service_name text
 );
 
 create table gtfs_calendar_dates (
   service_id     text , --REFERENCES gtfs_calendar(service_id),
   date     date NOT NULL, --NOT NULL,
-  exception_type int  NOT NULL--NOT NULL
+  exception_type int  NOT NULL, --NOT NULL
   -- above reference not in makeindices.sql
+
+  -- unofficial
+  holiday_name text
 );
 
 -- The following two tables are not in the spec, but they make dealing with dates and services easier
@@ -270,6 +282,9 @@ create table gtfs_stop_times (
   -- unofficial features
   arrival_time_seconds int, 
   departure_time_seconds int,
+  continuous_stops text,
+  area_id text,
+  service_area_radius text,
 
   FOREIGN KEY (trip_id) REFERENCES gtfs_trips(trip_id),
   FOREIGN KEY (stop_id) REFERENCES gtfs_stops(stop_id),
@@ -343,7 +358,8 @@ create table gtfs_feed_info (
 
   -- unofficial features
   feed_id text,
-  feed_timezone text
+  feed_timezone text,
+  feed_license text
 );
 
 
