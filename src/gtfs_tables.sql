@@ -313,6 +313,8 @@ create table gtfs_transfers (
   min_transfer_time int,
 
   -- unofficial features
+  from_trip_id text, --REFERENCES gtfs_routes(route_id)
+  to_trip_id text, --REFERENCES gtfs_routes(route_id)
   from_route_id text, --REFERENCES gtfs_routes(route_id)
   to_route_id text, --REFERENCES gtfs_routes(route_id)
   service_id text --REFERENCES gtfs_calendar(service_id) ?
