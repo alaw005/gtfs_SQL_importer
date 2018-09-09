@@ -134,7 +134,8 @@ create table gtfs_routes (
 
   -- unofficial
   min_headway_minutes text,
-  route_sort_order text
+  route_sort_order text,
+  unit_id text
  
 );
 
@@ -249,7 +250,8 @@ create table gtfs_trips (
   bikes_allowed int, 
 
   -- unofficial features
-  trip_type text
+  trip_type text,
+  route_variant text
 );
 
 create table gtfs_stop_times (
