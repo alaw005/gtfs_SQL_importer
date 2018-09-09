@@ -251,7 +251,8 @@ create table gtfs_trips (
 
   -- unofficial features
   trip_type text,
-  route_variant text
+  route_variant text,
+  trip_variant_name text
 );
 
 create table gtfs_stop_times (
